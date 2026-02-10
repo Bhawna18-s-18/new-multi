@@ -1,0 +1,16 @@
+---
+# tasks file for roles/nginx
+ - name: deploy nginx
+   apt:
+      name: nginx
+      state: present
+
+ - name: deploy code
+   copy:
+     src: ../code/index.html
+     dest: /usr/share/nginx/html/index.html
+
+ - name: restart nginx
+   service: 
+      name: nginx
+      state: restarted

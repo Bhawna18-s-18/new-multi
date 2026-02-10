@@ -1,0 +1,60 @@
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Checkout') {
+            steps { checkout scm }
+        }
+
+        stage('Deploy Dev') {
+            when { expression { env.GIT_BRANCH?.endsWith('/dev') } }
+            steps {
+                withCredentials([string(credentialsId: 'secret-pass', variable: 'SECRET_PASS')]) {
+                    sshPublisher(publishers: [
+                        sshPublisherDesc(
+                            configName: 'ansible',
+                            transfers: [sshTransfer(
+                                sourceFiles: 'ansible/**,code/**,nginx/**',
+                                remoteDirectory: '/projects/multi-branch',
+                                execCommand: """
+                                    cd /projects/multi-branch/ansible
+                                    echo "$VAULT_PASS" > .vault_pass
+                                    chmod 600 .vault_pass
+                                    ansible-playbook -i hosts deploy.yml --limit dev --vault-password-file .vault_pass -vv
+                                    rm -f .vault_pass
+                                """
+                            )]
+                        )
+                    ])
+                }
+            }
+        }
+
+        stage('Deploy Prod') {
+            when { expression { env.GIT_BRANCH?.endsWith('/main') } }
+            steps {
+                withCredentials([string(credentialsId: 'secret-pass', variable: 'SECRET_PASS')]) {
+                    sshPublisher(publishers: [
+                        sshPublisherDesc(
+                            configName: 'ansible',
+                            transfers: [sshTransfer(
+                                sourceFiles: 'ansible/**,code/**,nginx/**',
+                                remoteDirectory: '/projects/multi-branch',
+                                execCommand: """
+                                    cd /projects/multi-branch/ansible
+                                    echo "$VAULT_PASS" > .vault_pass
+                                    chmod 600 .vault_pass
+                                    ansible-playbook -i hosts deploy.yml --limit prod --vault-password-file .vault_pass -vv
+                                    rm -f .vault_pass
+                                """
+                            )]
+                        )
+                    ])
+                }
+            }
+        }
+    }
+}
+
+
